@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Student Dashboard</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="attendance.html">Attendance</a>
+        <a href="results.html">Results</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+    <div class="container">
+        <h2>Student Dashboard</h2>
+        <p>Welcome, <span id="studentName"></span></p>
+        <div id="summary"></div>
+    </div>
+    <script src="../js/api.js"></script>
+    <script>
+        apiCall('/students/profile')  // assume endpoint returns student details
+            .then(data => {
+                document.getElementById('studentName').innerText = data.firstName + ' ' + data.lastName;
+            })
+            .catch(err => window.location.href = '../login.html');
+    </script>
+</body>
+</html>

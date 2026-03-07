@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Teacher Dashboard</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="attendance.html">Mark Attendance</a>
+        <a href="marks.html">Enter Marks</a>
+        <a href="students.html">My Students</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+    <div class="container">
+        <h2>Teacher Dashboard</h2>
+        <p>Welcome, <span id="teacherName"></span></p>
+    </div>
+    <script src="../js/api.js"></script>
+    <script>
+        apiCall('/teachers/profile')
+            .then(data => document.getElementById('teacherName').innerText = data.firstName + ' ' + data.lastName)
+            .catch(() => window.location.href = '../login.html');
+    </script>
+</body>
+</html>
