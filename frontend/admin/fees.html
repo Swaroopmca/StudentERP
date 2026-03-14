@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Fees - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="teachers.html">Teachers</a>
+        <a href="courses.html">Courses</a>
+        <a href="subjects.html">Subjects</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="reports.html">Reports</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+    
+    <div class="container">
+        <h2>Manage Fees</h2>
+        
+        <div style="margin-bottom:20px;">
+            <button onclick="showAddFeeForm()">Add New Fee</button>
+            <button onclick="loadUnpaidFees()">View Unpaid Fees</button>
+            <button onclick="loadAllFees()">View All Fees</button>
+        </div>
+        
+        <div id="feeForm" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0;">
+            <h3 id="formTitle">Add Fee</h3>
+            <form id="feeFormElement">
+                <input type="hidden" id="feeId">
+                
+                <div>
+                    <label>Student:</label>
+                    <select id="studentId" required>
+                        <option value="">Select Student</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label>Fee Type:</label>
+                    <select id="feeType" required>
+                        <option value="TUITION">Tuition</option>
+                        <option value="HOSTEL">Hostel</option>
+                        <option value="TRANSPORT">Transport</option>
+                        <option value="LIBRARY">Library</option>
+                        <option value="OTHER">Other</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label>Amount:</label>
+                    <input type="number" id="amount" step="0.01" required>
+                </div>
+                
+                <div>
+                    <label>Due Date:</label>
+                    <input type="date" id="dueDate" required>
+                </div>
+                
+                <div>
+                    <label>Status:</label>
+                    <select id="status">
+                        <option value="UNPAID">Unpaid</option>
+                        <option value="PAID">Paid</option>
+                        <option value="PARTIAL">Partial</option>
+                    </select>
+                </div>
+                
+                <div>
+                    <label>Remarks:</label>
+                    <input type="text" id="remarks">
+                </div>
+                
+                <button type="submit">Save</button>
+                <button type="button" onclick="hideFeeForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <div id="feesSummary" style="display:flex; gap:20px; margin-bottom:20px;">
+            <div style="background:#4CAF50; color:white; padding:15px; border-radius:5px;">
+                <h3>Total Collected</h3>
+                <p id="totalCollected" style="font-size:24px; margin:5px 0;">₹0</p>
+            </div>
+            <div style="background:#f44336; color:white; padding:15px; border-radius:5px;">
+                <h3>Total Pending</h3>
+                <p id="totalPending" style="font-size:24px; margin:5px 0;">₹0</p>
+            </div>
+        </div>
+        
+        <table id="feesTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Student</th>
+                    <th>Fee Type</th>
+                    <th>Amount</th>
+                    <th>Due Date</th>
+                    <th>Paid Date</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script>
+        // Load students for dropdown
+        async function loadStudents() {
+            try {
+                const students = await apiCall('/students');
+                const select = document.getElementById('studentId');
+                select.innerHTML = '<option value="">Select Student</option>';
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id;
+                    option.textContent = student.firstName + ' ' + student.lastName + ' (' + student.id + ')';
+                    select.appendChild(option);
+                });
+            } catch (err) {
+                console.error('Failed to load students:', err);
+            }
+        }
+        
+        // Load all fees
+        async function loadAllFees() {
+            try {
+                const fees = await apiCall('/fees');
+                displayFees(fees);
+                loadFeeSummary();
+            } catch (err) {
+                console.error('Failed to load fees:', err);
+            }
+        }
+        
+        // Load unpaid fees
+        async function loadUnpaidFees() {
+            try {
+                const fees = await apiCall('/fees/unpaid');
+                displayFees(fees);
+            } catch (err) {
+                console.error('Failed to load unpaid fees:', err);
+            }
+        }
+        
+        // Load fee summary
+        async function loadFeeSummary() {
+            try {
+                const collected = await apiCall('/fees/collected/total');
+                const pending = await apiCall('/fees/pending/total');
+                
+                document.getElementById('totalCollected').textContent = '₹' + (collected || 0);
+                document.getElementById('totalPending').textContent = '₹' + (pending || 0);
+            } catch (err) {
+                console.error('Failed to load fee summary:', err);
+            }
+        }
+        
+        // Display fees in table
+        function displayFees(fees) {
+            const tbody = document.querySelector('#feesTable tbody');
+            tbody.innerHTML = '';
+            
+            fees.forEach(fee => {
+                const row = tbody.insertRow();
+                row.insertCell().textContent = fee.id;
+                row.insertCell().textContent = fee.student ? 
+                    fee.student.firstName + ' ' + fee.student.lastName : '-';
+                row.insertCell().textContent = fee.feeType;
+                row.insertCell().textContent = '₹' + fee.amount;
+                row.insertCell().textContent = fee.dueDate || '-';
+                row.insertCell().textContent = fee.paidDate || '-';
+                row.insertCell().innerHTML = 
+                    `<span class="status-badge status-${fee.status.toLowerCase()}">${fee.status}</span>`;
+                
+                const actions = row.insertCell();
+                actions.innerHTML = `
+                    <button class="edit" onclick="editFee(${fee.id})">Edit</button>
+                    ${fee.status !== 'PAID' ? 
+                        `<button class="edit" onclick="markAsPaid(${fee.id})">Mark Paid</button>` : ''}
+                    <button class="delete" onclick="deleteFee(${fee.id})">Delete</button>
+                `;
+            });
+        }
+        
+        function showAddFeeForm() {
+            document.getElementById('feeForm').style.display = 'block';
+            document.getElementById('formTitle').textContent = 'Add Fee';
+            document.getElementById('feeFormElement').reset();
+            document.getElementById('feeId').value = '';
+            loadStudents();
+        }
+        
+        function hideFeeForm() {
+            document.getElementById('feeForm').style.display = 'none';
+        }
+        
+        async function editFee(id) {
+            try {
+                const [fee, students] = await Promise.all([
+                    apiCall('/fees/' + id),
+                    apiCall('/students')
+                ]);
+                
+                // Populate student dropdown
+                const select = document.getElementById('studentId');
+                select.innerHTML = '<option value="">Select Student</option>';
+                students.forEach(student => {
+                    const option = document.createElement('option');
+                    option.value = student.id;
+                    option.textContent = student.firstName + ' ' + student.lastName;
+                    if (fee.student && fee.student.id === student.id) {
+                        option.selected = true;
+                    }
+                    select.appendChild(option);
+                });
+                
+                document.getElementById('feeId').value = fee.id;
+                document.getElementById('feeType').value = fee.feeType;
+                document.getElementById('amount').value = fee.amount;
+                document.getElementById('dueDate').value = fee.dueDate;
+                document.getElementById('status').value = fee.status;
+                document.getElementById('remarks').value = fee.remarks || '';
+                
+                document.getElementById('formTitle').textContent = 'Edit Fee';
+                document.getElementById('feeForm').style.display = 'block';
+            } catch (err) {
+                console.error('Failed to load fee:', err);
+                alert('Failed to load fee details');
+            }
+        }
+        
+        async function markAsPaid(id) {
+            if (!confirm('Mark this fee as paid?')) {
+                return;
+            }
+            
+            try {
+                await apiCall(`/fees/${id}/pay`, 'PATCH');
+                alert('Fee marked as paid');
+                loadAllFees();
+            } catch (err) {
+                console.error('Failed to mark fee as paid:', err);
+                alert('Failed to update fee');
+            }
+        }
+        
+        async function deleteFee(id) {
+            if (!confirm('Are you sure you want to delete this fee record?')) {
+                return;
+            }
+            
+            try {
+                await apiCall('/fees/' + id, 'DELETE');
+                alert('Fee deleted successfully');
+                loadAllFees();
+            } catch (err) {
+                console.error('Failed to delete fee:', err);
+                alert('Failed to delete fee');
+            }
+        }
+        
+        document.getElementById('feeFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('feeId').value;
+            const feeData = {
+                student: { id: parseInt(document.getElementById('studentId').value) },
+                feeType: document.getElementById('feeType').value,
+                amount: parseFloat(document.getElementById('amount').value),
+                dueDate: document.getElementById('dueDate').value,
+                status: document.getElementById('status').value,
+                remarks: document.getElementById('remarks').value
+            };
+            
+            try {
+                if (id) {
+                    await apiCall('/fees/' + id, 'PUT', feeData);
+                } else {
+                    await apiCall('/fees', 'POST', feeData);
+                }
+                
+                hideFeeForm();
+                loadAllFees();
+                alert('Fee saved successfully');
+            } catch (err) {
+                console.error('Failed to save fee:', err);
+                alert('Failed to save fee');
+            }
+        });
+        
+        // Initial loads
+        loadAllFees();
+    </script>
+</body>
+</html>

@@ -1,0 +1,207 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Students - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="teachers.html">Teachers</a>
+        <a href="courses.html">Courses</a>
+        <a href="subjects.html">Subjects</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="reports.html">Reports</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h2>Manage Students</h2>
+
+        <button onclick="showAddStudentForm()">Add New Student</button>
+
+        <!-- Student Form (Add/Edit) -->
+        <div id="studentForm" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0;">
+            <h3 id="formTitle">Add Student</h3>
+            <form id="studentFormElement">
+                <input type="hidden" id="studentId">
+
+                <div><label>First Name:</label> <input type="text" id="firstName" required></div>
+                <div><label>Last Name:</label> <input type="text" id="lastName" required></div>
+                <div><label>Email:</label> <input type="email" id="email" required></div>
+                <div><label>Phone:</label> <input type="text" id="phone"></div>
+                <div><label>Date of Birth:</label> <input type="date" id="dob"></div>
+                <div><label>Address:</label> <input type="text" id="address"></div>
+                <div><label>Enrollment Date:</label> <input type="date" id="enrollmentDate"></div>
+                <div>
+                    <label>Course:</label>
+                    <select id="courseId" required>
+                        <option value="">Select Course</option>
+                    </select>
+                </div>
+                <div><label>Username:</label> <input type="text" id="username" required></div>
+                <div><label>Password:</label> <input type="password" id="password" required></div>
+
+                <button type="submit">Save</button>
+                <button type="button" onclick="hideStudentForm()">Cancel</button>
+            </form>
+        </div>
+
+        <!-- Students List -->
+        <table id="studentsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Course</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        // Load courses for dropdown
+        async function loadCourses() {
+            try {
+                const courses = await apiCall('/courses');
+                const select = document.getElementById('courseId');
+                select.innerHTML = '<option value="">Select Course</option>';
+                courses.forEach(course => {
+                    const opt = document.createElement('option');
+                    opt.value = course.id;
+                    opt.textContent = course.name;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error('Failed to load courses:', err);
+            }
+        }
+
+        // Load and display students
+        async function loadStudents() {
+            try {
+                const students = await apiCall('/students');
+                const tbody = document.querySelector('#studentsTable tbody');
+                tbody.innerHTML = '';
+
+                students.forEach(s => {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = s.id;
+                    row.insertCell().textContent = s.firstName + ' ' + s.lastName;
+                    row.insertCell().textContent = s.email;
+                    row.insertCell().textContent = s.phone || '-';
+                    row.insertCell().textContent = s.course ? s.course.name : '-';
+
+                    const actions = row.insertCell();
+                    actions.innerHTML = `
+                        <button class="edit" onclick="editStudent(${s.id})">Edit</button>
+                        <button class="delete" onclick="deleteStudent(${s.id})">Delete</button>
+                    `;
+                });
+            } catch (err) {
+                console.error('Failed to load students:', err);
+            }
+        }
+
+        function showAddStudentForm() {
+            document.getElementById('studentForm').style.display = 'block';
+            document.getElementById('formTitle').textContent = 'Add Student';
+            document.getElementById('studentFormElement').reset();
+            document.getElementById('studentId').value = '';
+            document.getElementById('password').required = true;
+            loadCourses();
+        }
+
+        function hideStudentForm() {
+            document.getElementById('studentForm').style.display = 'none';
+        }
+
+        async function editStudent(id) {
+            try {
+                const student = await apiCall('/students/' + id);
+                // Load courses first
+                await loadCourses();
+
+                document.getElementById('studentId').value = student.id;
+                document.getElementById('firstName').value = student.firstName;
+                document.getElementById('lastName').value = student.lastName;
+                document.getElementById('email').value = student.email;
+                document.getElementById('phone').value = student.phone || '';
+                document.getElementById('dob').value = student.dob || '';
+                document.getElementById('address').value = student.address || '';
+                document.getElementById('enrollmentDate').value = student.enrollmentDate || '';
+                document.getElementById('courseId').value = student.course ? student.course.id : '';
+                document.getElementById('username').value = student.user ? student.user.username : '';
+                document.getElementById('password').required = false; // not required on edit
+
+                document.getElementById('formTitle').textContent = 'Edit Student';
+                document.getElementById('studentForm').style.display = 'block';
+            } catch (err) {
+                console.error('Failed to load student:', err);
+                alert('Could not load student details.');
+            }
+        }
+
+        async function deleteStudent(id) {
+            if (!confirm('Delete this student? This action cannot be undone.')) return;
+            try {
+                await apiCall('/students/' + id, 'DELETE');
+                alert('Student deleted.');
+                loadStudents();
+            } catch (err) {
+                console.error('Delete failed:', err);
+                alert('Failed to delete student.');
+            }
+        }
+
+        document.getElementById('studentFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+
+            const id = document.getElementById('studentId').value;
+            const studentData = {
+                firstName: document.getElementById('firstName').value,
+                lastName: document.getElementById('lastName').value,
+                email: document.getElementById('email').value,
+                phone: document.getElementById('phone').value,
+                dob: document.getElementById('dob').value,
+                address: document.getElementById('address').value,
+                enrollmentDate: document.getElementById('enrollmentDate').value,
+                course: { id: parseInt(document.getElementById('courseId').value) },
+                user: {
+                    username: document.getElementById('username').value,
+                    role: 'STUDENT'
+                }
+            };
+
+            const password = document.getElementById('password').value;
+            if (password) {
+                studentData.user.password = password;
+            }
+
+            try {
+                if (id) {
+                    await apiCall('/students/' + id, 'PUT', studentData);
+                } else {
+                    await apiCall('/students', 'POST', studentData);
+                }
+                hideStudentForm();
+                loadStudents();
+                alert('Student saved.');
+            } catch (err) {
+                console.error('Save failed:', err);
+                alert('Failed to save student.');
+            }
+        });
+
+        // Initial load
+        loadStudents();
+    </script>
+</body>
+</html>

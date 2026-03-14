@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Manage Courses - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="teachers.html">Teachers</a>
+        <a href="courses.html">Courses</a>
+        <a href="subjects.html">Subjects</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="reports.html">Reports</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+    
+    <div class="container">
+        <h2>Manage Courses</h2>
+        
+        <button onclick="showAddCourseForm()">Add New Course</button>
+        
+        <div id="courseForm" style="display:none; border:1px solid #ccc; padding:20px; margin:20px 0;">
+            <h3 id="formTitle">Add Course</h3>
+            <form id="courseFormElement">
+                <input type="hidden" id="courseId">
+                
+                <div>
+                    <label>Course Name:</label>
+                    <input type="text" id="name" required>
+                </div>
+                
+                <div>
+                    <label>Course Code:</label>
+                    <input type="text" id="code" required>
+                </div>
+                
+                <div>
+                    <label>Duration (Months):</label>
+                    <input type="number" id="durationMonths" required>
+                </div>
+                
+                <div>
+                    <label>Description:</label>
+                    <textarea id="description" rows="4" style="width:300px;"></textarea>
+                </div>
+                
+                <button type="submit">Save</button>
+                <button type="button" onclick="hideCourseForm()">Cancel</button>
+            </form>
+        </div>
+        
+        <table id="coursesTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Code</th>
+                    <th>Duration</th>
+                    <th>Description</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script>
+        // Load courses
+        async function loadCourses() {
+            try {
+                const courses = await apiCall('/courses');
+                const tbody = document.querySelector('#coursesTable tbody');
+                tbody.innerHTML = '';
+                
+                courses.forEach(course => {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = course.id;
+                    row.insertCell().textContent = course.name;
+                    row.insertCell().textContent = course.code;
+                    row.insertCell().textContent = course.durationMonths + ' months';
+                    row.insertCell().textContent = course.description || '-';
+                    
+                    const actions = row.insertCell();
+                    actions.innerHTML = `
+                        <button class="edit" onclick="editCourse(${course.id})">Edit</button>
+                        <button class="delete" onclick="deleteCourse(${course.id})">Delete</button>
+                    `;
+                });
+            } catch (err) {
+                console.error('Failed to load courses:', err);
+            }
+        }
+        
+        function showAddCourseForm() {
+            document.getElementById('courseForm').style.display = 'block';
+            document.getElementById('formTitle').textContent = 'Add Course';
+            document.getElementById('courseFormElement').reset();
+            document.getElementById('courseId').value = '';
+        }
+        
+        function hideCourseForm() {
+            document.getElementById('courseForm').style.display = 'none';
+        }
+        
+        async function editCourse(id) {
+            try {
+                const course = await apiCall('/courses/' + id);
+                
+                document.getElementById('courseId').value = course.id;
+                document.getElementById('name').value = course.name;
+                document.getElementById('code').value = course.code;
+                document.getElementById('durationMonths').value = course.durationMonths;
+                document.getElementById('description').value = course.description || '';
+                
+                document.getElementById('formTitle').textContent = 'Edit Course';
+                document.getElementById('courseForm').style.display = 'block';
+            } catch (err) {
+                console.error('Failed to load course:', err);
+                alert('Failed to load course details');
+            }
+        }
+        
+        async function deleteCourse(id) {
+            if (!confirm('Are you sure you want to delete this course? This may affect related subjects and students.')) {
+                return;
+            }
+            
+            try {
+                await apiCall('/courses/' + id, 'DELETE');
+                alert('Course deleted successfully');
+                loadCourses();
+            } catch (err) {
+                console.error('Failed to delete course:', err);
+                alert('Failed to delete course');
+            }
+        }
+        
+        document.getElementById('courseFormElement').addEventListener('submit', async (e) => {
+            e.preventDefault();
+            
+            const id = document.getElementById('courseId').value;
+            const courseData = {
+                name: document.getElementById('name').value,
+                code: document.getElementById('code').value,
+                durationMonths: parseInt(document.getElementById('durationMonths').value),
+                description: document.getElementById('description').value
+            };
+            
+            try {
+                if (id) {
+                    await apiCall('/courses/' + id, 'PUT', courseData);
+                } else {
+                    await apiCall('/courses', 'POST', courseData);
+                }
+                
+                hideCourseForm();
+                loadCourses();
+                alert('Course saved successfully');
+            } catch (err) {
+                console.error('Failed to save course:', err);
+                alert('Failed to save course');
+            }
+        });
+        
+        // Initial load
+        loadCourses();
+    </script>
+</body>
+</html>

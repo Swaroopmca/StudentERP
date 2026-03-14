@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Mark Attendance - Teacher</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="attendance.html">Mark Attendance</a>
+        <a href="marks.html">Enter Marks</a>
+        <a href="students.html">My Students</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h2>Mark Attendance</h2>
+
+        <form id="attendanceFilter">
+            <div>
+                <label>Subject:</label>
+                <select id="subjectId" class="subject-select" required>
+                    <option value="">Select Subject</option>
+                </select>
+            </div>
+            <div>
+                <label>Date:</label>
+                <input type="date" id="attendanceDate" required>
+            </div>
+            <button type="button" onclick="loadStudentsForAttendance()">Load Students</button>
+        </form>
+
+        <div id="attendanceContainer" style="margin-top:20px;"></div>
+        <button id="saveAttendanceBtn" style="display:none; margin-top:10px;" onclick="saveAttendance()">Save Attendance</button>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        let teacherId = null;
+
+        // Get current teacher ID from session (or use /teachers/me)
+        async function getTeacherId() {
+            try {
+                const teacher = await apiCall('/teachers/me');
+                teacherId = teacher.id;
+            } catch (err) {
+                console.error('Not logged in as teacher');
+                window.location.href = '../login.html';
+            }
+        }
+
+        // Load subjects taught by this teacher
+        async function loadSubjects() {
+            try {
+                const subjects = await apiCall('/subjects/teacher/me');
+                const select = document.getElementById('subjectId');
+                select.innerHTML = '<option value="">Select Subject</option>';
+                subjects.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.name;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error('Failed to load subjects:', err);
+            }
+        }
+
+        async function loadStudentsForAttendance() {
+            const subjectId = document.getElementById('subjectId').value;
+            const date = document.getElementById('attendanceDate').value;
+            if (!subjectId || !date) {
+                alert('Please select subject and date');
+                return;
+            }
+
+            try {
+                // Get subject details to find its course
+                const subject = await apiCall('/subjects/' + subjectId);
+                // Get students enrolled in that course
+                const students = await apiCall('/students/course/' + subject.course.id);
+                // Get existing attendance for this subject and date (if any)
+                const existingAttendance = await apiCall(`/attendance/subject/${subjectId}/date/${date}`);
+
+                // Build map of existing attendance
+                const attendanceMap = {};
+                existingAttendance.forEach(a => {
+                    attendanceMap[a.student.id] = a.status;
+                });
+
+                // Render table
+                let html = '<table><tr><th>Student</th><th>Status</th></tr>';
+                students.forEach(s => {
+                    const currentStatus = attendanceMap[s.id] || 'PRESENT';
+                    html += `<tr>`;
+                    html += `<td>${s.firstName} ${s.lastName}</td>`;
+                    html += `<td>`;
+                    html += `<select class="attendance-status" data-student-id="${s.id}">`;
+                    html += `<option value="PRESENT" ${currentStatus==='PRESENT'?'selected':''}>Present</option>`;
+                    html += `<option value="ABSENT" ${currentStatus==='ABSENT'?'selected':''}>Absent</option>`;
+                    html += `<option value="LATE" ${currentStatus==='LATE'?'selected':''}>Late</option>`;
+                    html += `</select>`;
+                    html += `</td>`;
+                    html += `</tr>`;
+                });
+                html += '</table>';
+
+                document.getElementById('attendanceContainer').innerHTML = html;
+                document.getElementById('saveAttendanceBtn').style.display = 'block';
+            } catch (err) {
+                console.error('Failed to load students:', err);
+                alert('Could not load student list.');
+            }
+        }
+
+        async function saveAttendance() {
+            const subjectId = document.getElementById('subjectId').value;
+            const date = document.getElementById('attendanceDate').value;
+
+            const statusSelects = document.querySelectorAll('.attendance-status');
+            const attendanceData = [];
+
+            statusSelects.forEach(select => {
+                const studentId = select.dataset.studentId;
+                attendanceData.push({
+                    student: { id: parseInt(studentId) },
+                    subject: { id: parseInt(subjectId) },
+                    date: date,
+                    status: select.value,
+                    markedBy: { id: teacherId }
+                });
+            });
+
+            try {
+                await apiCall('/attendance/bulk', 'POST', attendanceData);
+                alert('Attendance saved successfully');
+            } catch (err) {
+                console.error('Failed to save attendance:', err);
+                alert('Error saving attendance');
+            }
+        }
+
+        // Initialise
+        (async function() {
+            await getTeacherId();
+            await loadSubjects();
+        })();
+    </script>
+</body>
+</html>

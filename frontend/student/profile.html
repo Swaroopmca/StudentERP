@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Profile - Student</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="attendance.html">Attendance</a>
+        <a href="results.html">Results</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h2>My Profile</h2>
+        <div id="profileInfo"></div>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadProfile() {
+            try {
+                const student = await apiCall('/students/me');
+                let html = '<table>';
+                html += `<tr><th>Student ID</th><td>${student.id}</td></tr>`;
+                html += `<tr><th>First Name</th><td>${student.firstName}</td></tr>`;
+                html += `<tr><th>Last Name</th><td>${student.lastName}</td></tr>`;
+                html += `<tr><th>Email</th><td>${student.email}</td></tr>`;
+                html += `<tr><th>Phone</th><td>${student.phone || '-'}</td></tr>`;
+                html += `<tr><th>Date of Birth</th><td>${student.dob || '-'}</td></tr>`;
+                html += `<tr><th>Address</th><td>${student.address || '-'}</td></tr>`;
+                html += `<tr><th>Enrollment Date</th><td>${student.enrollmentDate || '-'}</td></tr>`;
+                html += `<tr><th>Course</th><td>${student.course ? student.course.name : '-'}</td></tr>`;
+                html += '</table>';
+                document.getElementById('profileInfo').innerHTML = html;
+            } catch (err) {
+                console.error('Failed to load profile:', err);
+                window.location.href = '../login.html';
+            }
+        }
+        loadProfile();
+    </script>
+</body>
+</html>

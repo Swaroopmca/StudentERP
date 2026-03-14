@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Students - Teacher</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="attendance.html">Mark Attendance</a>
+        <a href="marks.html">Enter Marks</a>
+        <a href="students.html">My Students</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h2>My Students</h2>
+        <p>Students enrolled in the courses you teach.</p>
+
+        <table id="studentsTable">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Course</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadMyStudents() {
+            try {
+                // 1. Get subjects taught by this teacher
+                const subjects = await apiCall('/subjects/teacher/me');
+                // 2. Extract unique course IDs
+                const courseIds = [...new Set(subjects.map(s => s.course.id))];
+                // 3. For each course, fetch students
+                const studentPromises = courseIds.map(id => apiCall('/students/course/' + id));
+                const studentsArrays = await Promise.all(studentPromises);
+                // 4. Flatten and remove duplicates (a student might be in multiple courses of same teacher)
+                const allStudents = [].concat(...studentsArrays);
+                const uniqueStudents = Array.from(new Map(allStudents.map(s => [s.id, s])).values());
+
+                const tbody = document.querySelector('#studentsTable tbody');
+                tbody.innerHTML = '';
+
+                uniqueStudents.forEach(s => {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = s.id;
+                    row.insertCell().textContent = s.firstName + ' ' + s.lastName;
+                    row.insertCell().textContent = s.email;
+                    row.insertCell().textContent = s.phone || '-';
+                    row.insertCell().textContent = s.course ? s.course.name : '-';
+                });
+
+                if (uniqueStudents.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="5">No students found.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Failed to load students:', err);
+            }
+        }
+
+        loadMyStudents();
+    </script>
+</body>
+</html>

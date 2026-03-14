@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Results - Student</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="attendance.html">Attendance</a>
+        <a href="results.html">Results</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h2>My Results</h2>
+        <table id="resultsTable">
+            <thead>
+                <tr>
+                    <th>Subject</th>
+                    <th>Exam Type</th>
+                    <th>Marks Obtained</th>
+                    <th>Max Marks</th>
+                    <th>Percentage</th>
+                    <th>Exam Date</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadResults() {
+            try {
+                const marks = await apiCall('/marks/student/me');
+                const tbody = document.querySelector('#resultsTable tbody');
+                tbody.innerHTML = '';
+                marks.forEach(m => {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = m.subject.name;
+                    row.insertCell().textContent = m.examType;
+                    row.insertCell().textContent = m.marksObtained;
+                    row.insertCell().textContent = m.maxMarks;
+                    const percentage = ((m.marksObtained / m.maxMarks) * 100).toFixed(2);
+                    row.insertCell().textContent = percentage + '%';
+                    row.insertCell().textContent = m.examDate;
+                });
+                if (marks.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="6">No results found.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Failed to load results:', err);
+            }
+        }
+        loadResults();
+    </script>
+</body>
+</html>

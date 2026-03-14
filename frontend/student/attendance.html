@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My Attendance - Student</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="attendance.html">Attendance</a>
+        <a href="results.html">Results</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h2>My Attendance</h2>
+        <table id="attendanceTable">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Subject</th>
+                    <th>Status</th>
+                </tr>
+            </thead>
+            <tbody></tbody>
+        </table>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadAttendance() {
+            try {
+                const records = await apiCall('/attendance/student/me');
+                const tbody = document.querySelector('#attendanceTable tbody');
+                tbody.innerHTML = '';
+                records.forEach(rec => {
+                    const row = tbody.insertRow();
+                    row.insertCell().textContent = rec.date;
+                    row.insertCell().textContent = rec.subject.name;
+                    row.insertCell().innerHTML = `<span class="status-badge status-${rec.status.toLowerCase()}">${rec.status}</span>`;
+                });
+                if (records.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3">No attendance records found.</td></tr>';
+                }
+            } catch (err) {
+                console.error('Failed to load attendance:', err);
+            }
+        }
+        loadAttendance();
+    </script>
+</body>
+</html>

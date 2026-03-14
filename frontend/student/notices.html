@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Notices - Student</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="profile.html">Profile</a>
+        <a href="attendance.html">Attendance</a>
+        <a href="results.html">Results</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+    
+    <div class="container">
+        <h2>Notices</h2>
+        
+        <div style="margin-bottom:20px;">
+            <button onclick="loadAllNotices()">All Notices</button>
+            <button onclick="loadStudentNotices()">For Students</button>
+        </div>
+        
+        <div id="noticesList"></div>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script>
+        async function loadAllNotices() {
+            try {
+                const notices = await apiCall('/notices');
+                displayNotices(notices);
+            } catch (err) {
+                console.error('Failed to load notices:', err);
+            }
+        }
+        
+        async function loadStudentNotices() {
+            try {
+                const notices = await apiCall('/notices/target/STUDENT');
+                displayNotices(notices);
+            } catch (err) {
+                console.error('Failed to load notices:', err);
+            }
+        }
+        
+        function displayNotices(notices) {
+            const container = document.getElementById('noticesList');
+            container.innerHTML = '';
+            
+            notices.sort((a, b) => new Date(b.postedAt) - new Date(a.postedAt));
+            
+            notices.forEach(notice => {
+                const noticeDiv = document.createElement('div');
+                noticeDiv.style.cssText = 'border:1px solid #ddd; padding:15px; margin:10px 0; border-radius:5px;';
+                
+                noticeDiv.innerHTML = `
+                    <h3 style="margin:0 0 10px 0;">${notice.title}</h3>
+                    <p style="margin:10px 0; white-space:pre-wrap;">${notice.content}</p>
+                    <div style="color:#666; font-size:12px;">
+                        Posted: ${new Date(notice.postedAt).toLocaleString()}
+                    </div>
+                `;
+                
+                container.appendChild(noticeDiv);
+            });
+            
+            if (notices.length === 0) {
+                container.innerHTML = '<p>No notices found</p>';
+            }
+        }
+        
+        // Load all notices by default
+        loadAllNotices();
+    </script>
+</body>
+</html>

@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reports - Admin</title>
+    <link rel="stylesheet" href="../css/style.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="students.html">Students</a>
+        <a href="teachers.html">Teachers</a>
+        <a href="courses.html">Courses</a>
+        <a href="subjects.html">Subjects</a>
+        <a href="fees.html">Fees</a>
+        <a href="notices.html">Notices</a>
+        <a href="reports.html">Reports</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+    
+    <div class="container">
+        <h2>Reports</h2>
+        
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px;">
+            <div class="chart-container">
+                <h3>Students per Course</h3>
+                <canvas id="studentCourseChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h3>Fee Collection Status</h3>
+                <canvas id="feeChart"></canvas>
+            </div>
+        </div>
+        
+        <div style="margin-top:30px;">
+            <h3>Generate Custom Report</h3>
+            <form id="reportForm">
+                <div style="display:flex; gap:10px; align-items:center;">
+                    <select id="reportType">
+                        <option value="students">Student List</option>
+                        <option value="attendance">Attendance Report</option>
+                        <option value="marks">Marks Report</option>
+                        <option value="fees">Fee Report</option>
+                    </select>
+                    
+                    <select id="reportFormat">
+                        <option value="html">HTML</option>
+                        <option value="csv">CSV</option>
+                        <option value="pdf">PDF</option>
+                    </select>
+                    
+                    <input type="date" id="startDate" placeholder="Start Date">
+                    <input type="date" id="endDate" placeholder="End Date">
+                    
+                    <button type="button" onclick="generateReport()">Generate</button>
+                </div>
+            </form>
+        </div>
+        
+        <div id="reportResults" style="margin-top:20px; overflow-x:auto;"></div>
+    </div>
+    
+    <script src="../js/api.js"></script>
+    <script>
+        let studentChart, feeChart;
+        
+        async function loadReports() {
+            try {
+                const [studentDistribution, feeReport] = await Promise.all([
+                    apiCall('/admin/reports/students-by-course'),
+                    apiCall('/admin/reports/fees-collection')
+                ]);
+                
+                displayStudentChart(studentDistribution);
+                displayFeeChart(feeReport);
+            } catch (err) {
+                console.error('Failed to load reports:', err);
+            }
+        }
+        
+        function displayStudentChart(data) {
+            const ctx = document.getElementById('studentCourseChart').getContext('2d');
+            
+            if (studentChart) {
+                studentChart.destroy();
+            }
+            
+            studentChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(data),
+                    datasets: [{
+                        label: 'Number of Students',
+                        data: Object.values(data),
+                        backgroundColor: 'rgba(54, 162, 235, 0.5)',
+                        borderColor: 'rgba(54, 162, 235, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            stepSize: 1
+                        }
+                    }
+                }
+            });
+        }
+        
+        function displayFeeChart(data) {
+            const ctx = document.getElementById('feeChart').getContext('2d');
+            
+            if (feeChart) {
+                feeChart.destroy();
+            }
+            
+            feeChart = new Chart(ctx, {
+                type: 'pie',
+                data: {
+                    labels: ['Collected', 'Pending'],
+                    datasets: [{
+                        data: [data.totalCollected || 0, data.totalPending || 0],
+                        backgroundColor: ['#4CAF50', '#f44336']
+                    }]
+                }
+            });
+        }
+        
+        async function generateReport() {
+            const reportType = document.getElementById('reportType').value;
+            const format = document.getElementById('reportFormat').value;
+            const startDate = document.getElementById('startDate').value;
+            const endDate = document.getElementById('endDate').value;
+            
+            let endpoint = `/reports/${reportType}?format=${format}`;
+            if (startDate) endpoint += `&startDate=${startDate}`;
+            if (endDate) endpoint += `&endDate=${endDate}`;
+            
+            try {
+                if (format === 'csv' || format === 'pdf') {
+                    // Download file
+                    await apiDownload(endpoint);
+                } else {
+                    // Display HTML
+                    const data = await apiCall(endpoint);
+                    displayReportResults(data, reportType);
+                }
+            } catch (err) {
+                console.error('Failed to generate report:', err);
+                alert('Failed to generate report');
+            }
+        }
+        
+        function displayReportResults(data, reportType) {
+            const container = document.getElementById('reportResults');
+            
+            if (!data || data.length === 0) {
+                container.innerHTML = '<p>No data found</p>';
+                return;
+            }
+            
+            let html = '<table><thead><tr>';
+            
+            // Create headers
+            Object.keys(data[0]).forEach(key => {
+                html += `<th>${key}</th>`;
+            });
+            html += '</tr></thead><tbody>';
+            
+            // Create rows
+            data.forEach(row => {
+                html += '<tr>';
+                Object.values(row).forEach(value => {
+                    html += `<td>${value || '-'}</td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            container.innerHTML = html;
+        }
+        
+        // Initial load
+        loadReports();
+    </script>
+</body>
+</html>

@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Enter Marks - Teacher</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <div class="navbar">
+        <a href="dashboard.html">Dashboard</a>
+        <a href="attendance.html">Mark Attendance</a>
+        <a href="marks.html">Enter Marks</a>
+        <a href="students.html">My Students</a>
+        <a href="notices.html">Notices</a>
+        <a href="../login.html" style="float:right;">Logout</a>
+    </div>
+
+    <div class="container">
+        <h2>Enter Marks</h2>
+
+        <form id="marksFilter">
+            <div>
+                <label>Subject:</label>
+                <select id="subjectId" class="subject-select" required>
+                    <option value="">Select Subject</option>
+                </select>
+            </div>
+            <div>
+                <label>Exam Type:</label>
+                <select id="examType">
+                    <option value="MIDTERM">Mid Term</option>
+                    <option value="FINAL">Final</option>
+                    <option value="ASSIGNMENT">Assignment</option>
+                </select>
+            </div>
+            <div>
+                <label>Max Marks:</label>
+                <input type="number" id="maxMarks" value="100" step="0.01">
+            </div>
+            <div>
+                <label>Exam Date:</label>
+                <input type="date" id="examDate" required>
+            </div>
+            <button type="button" onclick="loadStudentsForMarks()">Load Students</button>
+        </form>
+
+        <div id="marksContainer" style="margin-top:20px;"></div>
+        <button id="saveMarksBtn" style="display:none; margin-top:10px;" onclick="saveMarks()">Save Marks</button>
+    </div>
+
+    <script src="../js/api.js"></script>
+    <script>
+        let teacherId = null;
+
+        async function getTeacherId() {
+            try {
+                const teacher = await apiCall('/teachers/me');
+                teacherId = teacher.id;
+            } catch (err) {
+                window.location.href = '../login.html';
+            }
+        }
+
+        async function loadSubjects() {
+            try {
+                const subjects = await apiCall('/subjects/teacher/me');
+                const select = document.getElementById('subjectId');
+                select.innerHTML = '<option value="">Select Subject</option>';
+                subjects.forEach(s => {
+                    const opt = document.createElement('option');
+                    opt.value = s.id;
+                    opt.textContent = s.name;
+                    select.appendChild(opt);
+                });
+            } catch (err) {
+                console.error('Failed to load subjects:', err);
+            }
+        }
+
+        async function loadStudentsForMarks() {
+            const subjectId = document.getElementById('subjectId').value;
+            const examType = document.getElementById('examType').value;
+            const examDate = document.getElementById('examDate').value;
+            const maxMarks = document.getElementById('maxMarks').value;
+
+            if (!subjectId || !examDate) {
+                alert('Please select subject and exam date');
+                return;
+            }
+
+            try {
+                const subject = await apiCall('/subjects/' + subjectId);
+                const students = await apiCall('/students/course/' + subject.course.id);
+                // Optionally, fetch existing marks for this subject/exam type to pre-fill
+                // We'll keep it simple: blank inputs
+
+                let html = '<table><tr><th>Student</th><th>Marks Obtained</th></tr>';
+                students.forEach(s => {
+                    html += `<tr>`;
+                    html += `<td>${s.firstName} ${s.lastName}</td>`;
+                    html += `<td><input type="number" class="marks-input" data-student-id="${s.id}" step="0.01" min="0" max="${maxMarks}"></td>`;
+                    html += `</tr>`;
+                });
+                html += '</table>';
+
+                document.getElementById('marksContainer').innerHTML = html;
+                document.getElementById('saveMarksBtn').style.display = 'block';
+            } catch (err) {
+                console.error('Failed to load students:', err);
+                alert('Could not load students.');
+            }
+        }
+
+        async function saveMarks() {
+            const subjectId = document.getElementById('subjectId').value;
+            const examType = document.getElementById('examType').value;
+            const examDate = document.getElementById('examDate').value;
+            const maxMarks = parseFloat(document.getElementById('maxMarks').value);
+
+            const inputs = document.querySelectorAll('.marks-input');
+            const marksData = [];
+
+            inputs.forEach(input => {
+                const studentId = input.dataset.studentId;
+                const marksObtained = input.value;
+                if (marksObtained !== '') {
+                    marksData.push({
+                        student: { id: parseInt(studentId) },
+                        subject: { id: parseInt(subjectId) },
+                        examType: examType,
+                        marksObtained: parseFloat(marksObtained),
+                        maxMarks: maxMarks,
+                        examDate: examDate,
+                        enteredBy: { id: teacherId }
+                    });
+                }
+            });
+
+            if (marksData.length === 0) {
+                alert('No marks entered.');
+                return;
+            }
+
+            try {
+                await apiCall('/marks/bulk', 'POST', marksData);
+                alert('Marks saved successfully');
+            } catch (err) {
+                console.error('Failed to save marks:', err);
+                alert('Error saving marks');
+            }
+        }
+
+        (async function() {
+            await getTeacherId();
+            await loadSubjects();
+        })();
+    </script>
+</body>
+</html>
